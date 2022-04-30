@@ -2,33 +2,78 @@
 #include "Walnut/EntryPoint.h"
 
 #include "Walnut/Image.h"
+#include "Walnut/Random.h"
+#include "Walnut/Timer.h"
 
-class ExampleLayer : public Walnut::Layer
-{
+using namespace Walnut;
+
+class ExampleLayer : public Walnut::Layer{
 public:
-	virtual void OnUIRender() override
-	{
-		ImGui::Begin("Hello");
-		ImGui::Button("Button");
+	virtual void OnUIRender() override {
+
+		ImGui::Begin("Settings");
+		ImGui::Text("Last render: %.3fms", _lastRenderTime);
+		if (ImGui::Button("Render")){
+			Render();
+		}
 		ImGui::End();
 
-		ImGui::ShowDemoWindow();
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+		ImGui::Begin("Viewport");
+
+		_viewportWidth = ImGui::GetContentRegionAvail().x;
+		_viewportHeight = ImGui::GetContentRegionAvail().y;
+
+		if (_image) {
+			ImGui::Image(_image->GetDescriptorSet(), { (float)_image->GetWidth(), (float)_image->GetHeight() });
+		}
+
+		ImGui::End();
+		ImGui::PopStyleVar();
+
+		//Render();
 	}
+
+	void Render() {
+
+		Timer timer;
+
+		if (!_image || _viewportWidth != _image->GetWidth() || _viewportHeight != _image->GetHeight()) {
+			_image = std::make_shared<Image>(_viewportWidth, _viewportHeight, ImageFormat::RGBA);
+			delete[] _imageData;
+			_imageData = new uint32_t[_viewportWidth * _viewportHeight];
+		}
+
+		for (uint32_t i = 0; i < _viewportWidth * _viewportHeight; i++){
+			_imageData[i] = Random::UInt();
+			_imageData[i] |= 0xff000000;
+		}
+
+		_image->SetData(_imageData);
+
+		_lastRenderTime = timer.ElapsedMillis();
+	}
+
+private:
+	std::shared_ptr<Image> _image;
+	uint32_t* _imageData = nullptr;
+
+	uint32_t _viewportWidth = 0;
+	uint32_t _viewportHeight = 0;
+
+	float _lastRenderTime = 0.0f;
 };
 
-Walnut::Application* Walnut::CreateApplication(int argc, char** argv)
-{
+Walnut::Application* Walnut::CreateApplication(int argc, char** argv){
 	Walnut::ApplicationSpecification spec;
-	spec.Name = "Walnut Example";
+	spec.Name = "RayTracing";
 
 	Walnut::Application* app = new Walnut::Application(spec);
 	app->PushLayer<ExampleLayer>();
 	app->SetMenubarCallback([app]()
 	{
-		if (ImGui::BeginMenu("File"))
-		{
-			if (ImGui::MenuItem("Exit"))
-			{
+		if (ImGui::BeginMenu("File")){
+			if (ImGui::MenuItem("Exit")){
 				app->Close();
 			}
 			ImGui::EndMenu();
